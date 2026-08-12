@@ -3,7 +3,6 @@ import json
 import os
 import requests
 
-MODEL = "gemini-2.5-flash"
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
 
 PROMPT_TEMPLATE = """당신은 PC 하드웨어 병목 진단 전문가입니다.
@@ -35,8 +34,10 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload, ensure_ascii=False).encode('utf-8'))
 
+    def do_GET(self):
+        self._send(405, {"error": "POST 요청만 지원합니다."})
+
     def do_POST(self):
-        # 1) 요청 본문 파싱
         try:
             length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(length))
@@ -46,11 +47,9 @@ class handler(BaseHTTPRequestHandler):
         cpu = (body.get('cpu') or '').strip()
         gpu = (body.get('gpu') or '').strip()
 
-        # 2) 필수값 검증
         if not cpu or not gpu:
             return self._send(400, {"error": "CPU와 그래픽카드는 필수 입력값입니다."})
 
-        # 3) 환경변수 확인
         api_key = os.environ.get('GEMINI_API_KEY')
         if not api_key:
             return self._send(500, {"error": "서버 설정 오류입니다. 관리자에게 문의하세요."})
@@ -62,7 +61,6 @@ class handler(BaseHTTPRequestHandler):
             usage=(body.get('usage') or '미입력').strip(),
         )
 
-        # 4) Gemini 호출
         try:
             res = requests.post(
                 API_URL,
@@ -75,9 +73,10 @@ class handler(BaseHTTPRequestHandler):
                     "generationConfig": {
                         "temperature": 0.4,
                         "responseMimeType": "application/json",
+                        "thinkingConfig": {"thinkingBudget": 0},
                     },
                 },
-                timeout=20,
+                timeout=25,
             )
         except requests.Timeout:
             return self._send(504, {"error": "AI 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요."})
@@ -87,15 +86,21 @@ class handler(BaseHTTPRequestHandler):
         if res.status_code == 429:
             return self._send(429, {"error": "요청이 많습니다. 잠시 후 다시 시도해주세요."})
         if res.status_code != 200:
-            return self._send(502, {"error": f"AI 서버 오류가 발생했습니다. (코드 {res.status_code})", "debug": res.text[:500], "url": API_URL})
-
-        # 5) 응답에서 텍스트 추출 후 JSON 파싱
-        try:
-            parts = res.json()['candidates'][0]['content']['parts']
-            text = ''.join(p['text'] for p in parts if 'text' in p and not p.get('thought'))
-            result = json.loads(text)
-        except Exception as e:
             return self._send(502, {
-                "error": "AI 응답을 해석하지 못했습니다. 다시 시도해주세요.",
+                "error": "AI 서버 오류가 발생했습니다.",
                 "debug": res.text[:800],
+            })
+
+        raw = res.text
+        try:
+            data = res.json()
+            parts = data['candidates'][0]['content']['parts']
+            text = ''.join(p.get('text', '') for p in parts if not p.get('thought'))
+            result = json.loads(text)
+            return self._send(200, result)
+        except Exception as err:
+            return self._send(502, {
+                "error": "AI 응답을 해석하지 못했습니다.",
+                "debug": raw[:800],
+                "err_type": type(err).__name__,
             })
