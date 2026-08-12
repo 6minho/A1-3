@@ -85,10 +85,7 @@ class handler(BaseHTTPRequestHandler):
         if res.status_code == 429:
             return self._send(429, {"error": "요청이 많습니다. 잠시 후 다시 시도해주세요."})
         if res.status_code != 200:
-            return self._send(502, {
-                "error": "AI 서버 오류가 발생했습니다.",
-                "debug": res.text[:800],
-            })
+            return self._send(502, {"error": "AI 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."})
 
         raw = res.text
         try:
@@ -97,9 +94,5 @@ class handler(BaseHTTPRequestHandler):
             text = ''.join(p.get('text', '') for p in parts if not p.get('thought'))
             result = json.loads(text)
             return self._send(200, result)
-        except Exception as err:
-            return self._send(502, {
-                "error": "AI 응답을 해석하지 못했습니다.",
-                "debug": raw[:800],
-                "err_type": type(err).__name__,
-            })
+        except Exception:
+            return self._send(502, {"error": "AI 응답을 해석하지 못했습니다. 다시 시도해주세요."})
