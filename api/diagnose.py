@@ -91,9 +91,11 @@ class handler(BaseHTTPRequestHandler):
 
         # 5) 응답에서 텍스트 추출 후 JSON 파싱
         try:
-            text = res.json()['candidates'][0]['content']['parts'][0]['text']
+            parts = res.json()['candidates'][0]['content']['parts']
+            text = ''.join(p['text'] for p in parts if 'text' in p and not p.get('thought'))
             result = json.loads(text)
-        except Exception:
-            return self._send(502, {"error": "AI 응답을 해석하지 못했습니다. 다시 시도해주세요."})
-
-        return self._send(200, result)
+        except Exception as e:
+            return self._send(502, {
+                "error": "AI 응답을 해석하지 못했습니다. 다시 시도해주세요.",
+                "debug": res.text[:800],
+            })
