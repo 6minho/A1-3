@@ -87,7 +87,7 @@ class handler(BaseHTTPRequestHandler):
         if res.status_code == 429:
             return self._send(429, {"error": "요청이 많습니다. 잠시 후 다시 시도해주세요."})
         if res.status_code != 200:
-            return self._send(502, {"error": f"AI 서버 오류가 발생했습니다. (코드 {res.status_code})"})
+            return self._send(502, {"error": f"AI 서버 오류가 발생했습니다. (코드 {res.status_code})", "debug": res.text[:500], "url": API_URL})
 
         # 5) 응답에서 텍스트 추출 후 JSON 파싱
         try:
