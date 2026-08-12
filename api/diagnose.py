@@ -4,7 +4,7 @@ import os
 import requests
 
 MODEL = "gemini-2.5-flash"
-API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
+API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
 
 PROMPT_TEMPLATE = """당신은 PC 하드웨어 병목 진단 전문가입니다.
 아래 사양을 보고 병목을 진단하세요.
