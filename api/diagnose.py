@@ -73,7 +73,6 @@ class handler(BaseHTTPRequestHandler):
                     "generationConfig": {
                         "temperature": 0.4,
                         "responseMimeType": "application/json",
-                        "thinkingConfig": {"thinkingBudget": 0},
                     },
                 },
                 timeout=25,
